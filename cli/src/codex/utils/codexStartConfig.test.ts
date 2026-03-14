@@ -45,4 +45,19 @@ describe('buildCodexStartConfig', () => {
 
         expect(config.model).toBe('o3');
     });
+
+    it('passes model reasoning effort via config when provided', () => {
+        const config = buildCodexStartConfig({
+            message: 'hello',
+            mode: { permissionMode: 'default', modelReasoningEffort: 'xhigh' },
+            first: false,
+            mcpServers
+        });
+
+        expect(config.config).toEqual({
+            mcp_servers: mcpServers,
+            developer_instructions: codexSystemPrompt,
+            model_reasoning_effort: 'xhigh'
+        });
+    });
 });

@@ -61,5 +61,12 @@ export function buildCodexStartConfig(args: {
         startConfig.model = args.mode.model;
     }
 
+    if (args.mode.modelReasoningEffort) {
+        startConfig.config = {
+            ...(startConfig.config ?? {}),
+            model_reasoning_effort: args.mode.modelReasoningEffort
+        };
+    }
+
     return startConfig;
 }

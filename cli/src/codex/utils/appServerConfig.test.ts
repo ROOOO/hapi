@@ -54,6 +54,22 @@ describe('appServerConfig', () => {
         });
     });
 
+    it('passes model reasoning effort via thread config', () => {
+        const params = buildThreadStartParams({
+            mode: { permissionMode: 'default', modelReasoningEffort: 'xhigh' },
+            mcpServers
+        });
+
+        expect(params.config).toEqual({
+            'mcp_servers.hapi': {
+                command: 'node',
+                args: ['mcp']
+            },
+            developer_instructions: codexSystemPrompt,
+            model_reasoning_effort: 'xhigh'
+        });
+    });
+
     it('builds turn params with mode defaults', () => {
         const params = buildTurnStartParams({
             threadId: 'thread-1',

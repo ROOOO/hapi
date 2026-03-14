@@ -18,6 +18,7 @@ export const codexCommand: CommandDefinition = {
                 permissionMode?: CodexPermissionMode
                 resumeSessionId?: string
                 model?: string
+                modelReasoningEffort?: string
             } = {}
             const unknownArgs: string[] = []
 
@@ -44,6 +45,12 @@ export const codexCommand: CommandDefinition = {
                     }
                     options.model = model
                     unknownArgs.push('--model', model)
+                } else if (arg === '--model-reasoning-effort') {
+                    const effort = commandArgs[++i]
+                    if (!effort) {
+                        throw new Error('Missing --model-reasoning-effort value')
+                    }
+                    options.modelReasoningEffort = effort
                 } else {
                     unknownArgs.push(arg)
                 }

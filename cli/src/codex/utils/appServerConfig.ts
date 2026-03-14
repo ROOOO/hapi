@@ -93,7 +93,8 @@ export function buildThreadStartParams(args: {
         : baseInstructions;
     const configWithInstructions = {
         ...config,
-        developer_instructions: resolvedDeveloperInstructions
+        developer_instructions: resolvedDeveloperInstructions,
+        ...(args.mode.modelReasoningEffort ? { model_reasoning_effort: args.mode.modelReasoningEffort } : {})
     };
 
     const params: ThreadStartParams = {
