@@ -1,29 +1,25 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const harness = vi.hoisted(() => ({
-    codexLocalCalls: [] as unknown[],
-    sessionScannerCalls: [] as unknown[],
-    scannerFailureMessage: 'No Codex session found within 120000ms for cwd c:\\workspace\\project; refusing fallback.'
+    launches: [] as Array<Record<string, unknown>>,
+    sessionScannerCalls: [] as Array<{ onSessionMatchFailed?: (message: string) => void }>,
+    scannerFailureMessage: 'No Codex session found within 120000ms for cwd c:\\workspace\\project; refusing fallback.',
+    triggerScannerFailure: false
 }));
 
 vi.mock('./codexLocal', () => ({
-    codexLocal: async (opts: unknown) => {
-        harness.codexLocalCalls.push(opts);
+    codexLocal: async (opts: Record<string, unknown>) => {
+        harness.launches.push(opts);
     }
 }));
 
 vi.mock('./utils/buildHapiMcpBridge', () => ({
     buildHapiMcpBridge: async () => ({
         server: {
-            url: 'http://127.0.0.1:12345/',
+            url: 'http://localhost:0',
             stop: () => {}
         },
-        mcpServers: {
-            hapi: {
-                command: 'bun',
-                args: ['src/index.ts', 'mcp']
-            }
-        }
+        mcpServers: {}
     })
 }));
 
@@ -32,7 +28,9 @@ vi.mock('./utils/codexSessionScanner', () => ({
         onSessionMatchFailed?: (message: string) => void;
     }) => {
         harness.sessionScannerCalls.push(opts);
-        opts.onSessionMatchFailed?.(harness.scannerFailureMessage);
+        if (harness.triggerScannerFailure) {
+            opts.onSessionMatchFailed?.(harness.scannerFailureMessage);
+        }
         return {
             cleanup: async () => {},
             onNewSession: () => {}
@@ -40,67 +38,156 @@ vi.mock('./utils/codexSessionScanner', () => ({
     }
 }));
 
+vi.mock('@/modules/common/launcher/BaseLocalLauncher', () => ({
+    BaseLocalLauncher: class {
+        readonly control = {
+            requestExit: () => {}
+        };
+
+        constructor(private readonly opts: { launch: (signal: AbortSignal) => Promise<void> }) {}
+
+        async run(): Promise<'exit'> {
+            await this.opts.launch(new AbortController().signal);
+            return 'exit';
+        }
+    }
+}));
+
 import { codexLocalLauncher } from './codexLocalLauncher';
 
-function createQueueStub() {
-    return {
-        size: () => 0,
-        reset: () => {},
-        setOnMessage: () => {}
-    };
-}
-
-function createSessionStub() {
+function createSessionStub(
+    permissionMode: 'default' | 'read-only' | 'safe-yolo' | 'yolo',
+    codexArgs?: string[],
+    path = '/tmp/worktree'
+) {
     const sessionEvents: Array<{ type: string; message?: string }> = [];
-    const foundSessionIds: string[] = [];
     let localLaunchFailure: { message: string; exitReason: 'switch' | 'exit' } | null = null;
 
     const session = {
-        path: 'C:\\workspace\\project',
         sessionId: null as string | null,
+        path,
+        startedBy: 'terminal' as const,
+        startingMode: 'local' as const,
+        codexArgs,
         client: {
             rpcHandlerManager: {
                 registerHandler: () => {}
             }
         },
-        queue: createQueueStub(),
-        startedBy: 'terminal' as const,
-        startingMode: 'local' as const,
-        codexArgs: undefined,
-        onSessionFound(id: string) {
-            foundSessionIds.push(id);
-            session.sessionId = id;
-        },
-        sendSessionEvent(event: { type: string; message?: string }) {
+        getPermissionMode: () => permissionMode,
+        onSessionFound: () => {},
+        sendSessionEvent: (event: { type: string; message?: string }) => {
             sessionEvents.push(event);
         },
-        recordLocalLaunchFailure(message: string, exitReason: 'switch' | 'exit') {
+        recordLocalLaunchFailure: (message: string, exitReason: 'switch' | 'exit') => {
             localLaunchFailure = { message, exitReason };
+        },
+        sendUserMessage: () => {},
+        sendCodexMessage: () => {},
+        queue: {
+            size: () => 0,
+            reset: () => {},
+            setOnMessage: () => {}
         }
     };
 
     return {
         session,
         sessionEvents,
-        foundSessionIds,
         getLocalLaunchFailure: () => localLaunchFailure
     };
 }
 
 describe('codexLocalLauncher', () => {
     afterEach(() => {
-        harness.codexLocalCalls = [];
+        harness.launches = [];
         harness.sessionScannerCalls = [];
+        harness.triggerScannerFailure = false;
+    });
+
+    it('rebuilds approval and sandbox args from yolo mode', async () => {
+        const { session } = createSessionStub('yolo', [
+            '--sandbox',
+            'read-only',
+            '--ask-for-approval',
+            'untrusted',
+            '--model',
+            'o3',
+            '--full-auto'
+        ]);
+
+        await codexLocalLauncher(session as never);
+
+        expect(harness.launches).toHaveLength(1);
+        expect(harness.launches[0]?.codexArgs).toEqual([
+            '--ask-for-approval',
+            'never',
+            '--sandbox',
+            'danger-full-access',
+            '--model',
+            'o3'
+        ]);
+    });
+
+    it('preserves raw Codex approval flags in default mode', async () => {
+        const { session } = createSessionStub('default', [
+            '--ask-for-approval',
+            'on-request',
+            '--sandbox',
+            'workspace-write',
+            '--model',
+            'o3'
+        ]);
+
+        await codexLocalLauncher(session as never);
+
+        expect(harness.launches).toHaveLength(1);
+        expect(harness.launches[0]?.codexArgs).toEqual([
+            '--ask-for-approval',
+            'on-request',
+            '--sandbox',
+            'workspace-write',
+            '--model',
+            'o3'
+        ]);
+    });
+
+    it('keeps sandbox escalation available in safe-yolo mode', async () => {
+        const { session } = createSessionStub('safe-yolo', [
+            '--ask-for-approval',
+            'never',
+            '--sandbox',
+            'danger-full-access',
+            '--model',
+            'o3'
+        ]);
+
+        await codexLocalLauncher(session as never);
+
+        expect(harness.launches).toHaveLength(1);
+        expect(harness.launches[0]?.codexArgs).toEqual([
+            '--ask-for-approval',
+            'on-failure',
+            '--sandbox',
+            'workspace-write',
+            '--model',
+            'o3'
+        ]);
     });
 
     it('warns on session match failure without aborting local Codex launch', async () => {
-        const { session, sessionEvents, getLocalLaunchFailure } = createSessionStub();
+        harness.triggerScannerFailure = true;
+        const { session, sessionEvents, getLocalLaunchFailure } = createSessionStub(
+            'default',
+            undefined,
+            'C:\\workspace\\project'
+        );
 
         const exitReason = await codexLocalLauncher(session as never);
 
         expect(exitReason).toBe('exit');
         expect(harness.sessionScannerCalls).toHaveLength(1);
-        expect(harness.codexLocalCalls).toHaveLength(1);
+        expect(harness.launches).toHaveLength(1);
         expect(getLocalLaunchFailure()).toBeNull();
         expect(sessionEvents).toContainEqual({
             type: 'message',

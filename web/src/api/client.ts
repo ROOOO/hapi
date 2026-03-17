@@ -1,6 +1,7 @@
 import type {
     AttachmentMetadata,
     AuthResponse,
+    CodexCollaborationMode,
     DeleteUploadResponse,
     ListDirectoryResponse,
     FileReadResponse,
@@ -9,7 +10,6 @@ import type {
     MachinePathsExistsResponse,
     MachinesResponse,
     MessagesResponse,
-    ModelMode,
     PermissionMode,
     PushSubscriptionPayload,
     PushUnsubscribePayload,
@@ -313,7 +313,14 @@ export class ApiClient {
         })
     }
 
-    async setModelMode(sessionId: string, model: ModelMode): Promise<void> {
+    async setCollaborationMode(sessionId: string, mode: CodexCollaborationMode): Promise<void> {
+        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/collaboration-mode`, {
+            method: 'POST',
+            body: JSON.stringify({ mode })
+        })
+    }
+
+    async setModel(sessionId: string, model: string | null): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/model`, {
             method: 'POST',
             body: JSON.stringify({ model })
