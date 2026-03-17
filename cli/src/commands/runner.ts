@@ -6,10 +6,14 @@ import {
     stopRunner,
     stopRunnerSession
 } from '@/runner/controlClient'
+import { installWindowsRunnerAutostartTask } from '@/runner/windowsAutostart'
+import { authAndSetupMachineIfNeeded } from '@/ui/auth'
 import { getLatestRunnerLog } from '@/ui/logger'
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI'
 import { runDoctorCommand } from '@/ui/doctor'
 import { initializeToken } from '@/ui/tokenInit'
+import { isWindows } from '@/utils/process'
+import { updateSettings } from '@/persistence'
 import type { CommandDefinition } from './types'
 
 export const runnerCommand: CommandDefinition = {
@@ -82,6 +86,27 @@ export const runnerCommand: CommandDefinition = {
             process.exit(0)
         }
 
+        if (runnerSubcommand === 'install-autostart') {
+            if (!isWindows()) {
+                console.error('Runner autostart task is only supported on Windows')
+                process.exit(1)
+            }
+            try {
+                await initializeToken()
+                await authAndSetupMachineIfNeeded()
+                await installWindowsRunnerAutostartTask()
+                await updateSettings((current) => ({
+                    ...current,
+                    runnerAutoStartWhenRunningHappy: true
+                }))
+                console.log('Installed Windows autostart task for hapi runner')
+                process.exit(0)
+            } catch (error) {
+                console.error(error instanceof Error ? error.message : 'Failed to install runner autostart task')
+                process.exit(1)
+            }
+        }
+
         if (runnerSubcommand === 'stop') {
             await stopRunner()
             process.exit(0)
@@ -110,6 +135,7 @@ ${chalk.bold('Usage:')}
   hapi runner stop               Stop the runner (sessions stay alive)
   hapi runner status             Show runner status
   hapi runner list               List active sessions
+  hapi runner install-autostart  Install Windows logon task for runner
 
   If you want to kill all hapi related processes run 
   ${chalk.cyan('hapi doctor clean')}

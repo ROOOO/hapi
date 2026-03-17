@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { maybeOfferWindowsRunnerAutostart } from '@/runner/windowsAutostart'
 import { authAndSetupMachineIfNeeded } from '@/ui/auth'
 import { initializeToken } from '@/ui/tokenInit'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
@@ -42,6 +43,7 @@ export const opencodeCommand: CommandDefinition = {
             await initializeToken()
             await maybeAutoStartServer()
             await authAndSetupMachineIfNeeded()
+            await maybeOfferWindowsRunnerAutostart({ startedBy: options.startedBy })
 
             const { runOpencode } = await import('@/opencode/runOpencode')
             await runOpencode(options)

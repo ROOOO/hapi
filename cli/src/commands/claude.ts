@@ -5,6 +5,7 @@ import { PROTOCOL_VERSION } from '@hapi/protocol'
 import type { StartOptions } from '@/claude/runClaude'
 import { configuration } from '@/configuration'
 import { isRunnerRunningCurrentlyInstalledHappyVersion } from '@/runner/controlClient'
+import { maybeOfferWindowsRunnerAutostart } from '@/runner/windowsAutostart'
 import { authAndSetupMachineIfNeeded } from '@/ui/auth'
 import { logger } from '@/ui/logger'
 import { initializeToken } from '@/ui/tokenInit'
@@ -118,6 +119,7 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
         await initializeToken()
         await maybeAutoStartServer()
         await authAndSetupMachineIfNeeded()
+        await maybeOfferWindowsRunnerAutostart({ startedBy: options.startedBy })
 
         logger.debug('Ensuring hapi background service is running & matches our version...')
 
