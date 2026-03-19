@@ -49,6 +49,34 @@ describe('runnerIdentity', () => {
         )).toBe(false)
     })
 
+    it('rejects reused runner when current machine id is missing', () => {
+        expect(isRunnerStateCompatibleWithIdentity(
+            {
+                startedWithApiUrl: 'http://example.com',
+                startedWithMachineId: 'machine-123',
+                startedWithCliApiTokenHash: hashRunnerCliApiToken('secret-token')
+            },
+            {
+                apiUrl: 'http://example.com',
+                cliApiTokenHash: hashRunnerCliApiToken('secret-token')
+            }
+        )).toBe(false)
+    })
+
+    it('rejects reused runner when current token hash is missing', () => {
+        expect(isRunnerStateCompatibleWithIdentity(
+            {
+                startedWithApiUrl: 'http://example.com',
+                startedWithMachineId: 'machine-123',
+                startedWithCliApiTokenHash: hashRunnerCliApiToken('secret-token')
+            },
+            {
+                apiUrl: 'http://example.com',
+                machineId: 'machine-123'
+            }
+        )).toBe(false)
+    })
+
     it('rejects old runner state missing connection identity', () => {
         expect(isRunnerStateCompatibleWithIdentity(
             {},

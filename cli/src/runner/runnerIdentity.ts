@@ -26,11 +26,11 @@ export function isRunnerStateCompatibleWithIdentity(
         return false
     }
 
-    if (current.machineId && state.startedWithMachineId !== current.machineId) {
+    if (!current.machineId || state.startedWithMachineId !== current.machineId) {
         return false
     }
 
-    if (current.cliApiTokenHash && state.startedWithCliApiTokenHash !== current.cliApiTokenHash) {
+    if (!current.cliApiTokenHash || state.startedWithCliApiTokenHash !== current.cliApiTokenHash) {
         return false
     }
 
