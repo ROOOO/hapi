@@ -64,6 +64,7 @@ function resolveInstructions(args: {
 }
 
 export function buildThreadStartParams(args: {
+    cwd: string;
     mode: EnhancedMode;
     mcpServers: McpServersConfig;
     cliOverrides?: CodexCliOverrides;
@@ -89,6 +90,7 @@ export function buildThreadStartParams(args: {
     };
 
     const params: ThreadStartParams = {
+        cwd: args.cwd,
         approvalPolicy: resolvedApprovalPolicy,
         sandbox: resolvedSandbox,
         baseInstructions,
@@ -106,6 +108,7 @@ export function buildThreadStartParams(args: {
 export function buildTurnStartParams(args: {
     threadId: string;
     message: string;
+    cwd: string;
     mode?: EnhancedMode;
     cliOverrides?: CodexCliOverrides;
     baseInstructions?: string;
@@ -118,6 +121,7 @@ export function buildTurnStartParams(args: {
 }): TurnStartParams {
     const params: TurnStartParams = {
         threadId: args.threadId,
+        cwd: args.cwd,
         input: [{ type: 'text', text: args.message }]
     };
 
