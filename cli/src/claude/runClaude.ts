@@ -19,7 +19,6 @@ import { PermissionModeSchema } from '@hapi/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 import { getInvokedCwd } from '@/utils/invokedCwd';
 import { normalizeClaudeSessionModel } from './model';
-import { getInvokedCwd } from '@/utils/invokedCwd';
 
 export interface StartOptions {
     model?: string

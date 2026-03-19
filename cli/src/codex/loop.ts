@@ -15,7 +15,6 @@ export interface EnhancedMode {
     model?: string;
     modelReasoningEffort?: string;
     collaborationMode: CodexCollaborationMode;
-    modelReasoningEffort?: string;
 }
 
 interface LoopOptions {
