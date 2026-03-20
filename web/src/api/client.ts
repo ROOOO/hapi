@@ -7,6 +7,7 @@ import type {
     FileReadResponse,
     FileSearchResponse,
     GitCommandResponse,
+    MachineDirectoryResponse,
     MachinePathsExistsResponse,
     MachinesResponse,
     MessagesResponse,
@@ -238,6 +239,18 @@ export class ApiClient {
         const params = new URLSearchParams()
         params.set('path', path)
         return await this.request<FileReadResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/file?${params.toString()}`)
+    }
+
+    async listMachineDirectory(machineId: string, path?: string): Promise<MachineDirectoryResponse> {
+        const params = new URLSearchParams()
+        if (path) {
+            params.set('path', path)
+        }
+
+        const qs = params.toString()
+        return await this.request<MachineDirectoryResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/directory${qs ? `?${qs}` : ''}`
+        )
     }
 
     async listSessionDirectory(sessionId: string, path?: string): Promise<ListDirectoryResponse> {

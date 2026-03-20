@@ -32,6 +32,32 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         return c.json({ machines })
     })
 
+    app.get('/machines/:id/directory', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const path = c.req.query('path')
+        const result = await engine.listMachineDirectory(machineId, path)
+        if (!result.success) {
+            const status = result.error?.includes('does not support directory browsing')
+                ? 409
+                : result.error?.includes('disconnected while loading the directory')
+                    ? 503
+                    : 400
+            return c.json(result, status)
+        }
+
+        return c.json(result)
+    })
+
     app.post('/machines/:id/spawn', async (c) => {
         const engine = getSyncEngine()
         if (!engine) {

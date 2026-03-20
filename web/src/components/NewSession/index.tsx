@@ -12,6 +12,7 @@ import { useTranslation } from '@/lib/use-translation'
 import type { AgentType, CodexReasoningEffort, SessionType } from './types'
 import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
+import { DirectoryBrowserDialog } from './DirectoryBrowserDialog'
 import { DirectorySection } from './DirectorySection'
 import { MachineSelector } from './MachineSelector'
 import { ModelSelector } from './ModelSelector'
@@ -51,6 +52,7 @@ export function NewSession(props: {
     const [sessionType, setSessionType] = useState<SessionType>('simple')
     const [worktreeName, setWorktreeName] = useState('')
     const [directoryCreationConfirmed, setDirectoryCreationConfirmed] = useState(false)
+    const [isDirectoryBrowserOpen, setIsDirectoryBrowserOpen] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const worktreeInputRef = useRef<HTMLInputElement>(null)
 
@@ -199,6 +201,16 @@ export function NewSession(props: {
         setIsDirectoryFocused(false)
     }, [])
 
+    const handleBrowseDirectory = useCallback(() => {
+        if (!machineId || isFormDisabled) return
+        setIsDirectoryBrowserOpen(true)
+    }, [machineId, isFormDisabled])
+
+    const handleDirectoryBrowseSelect = useCallback((path: string) => {
+        setSuppressSuggestions(true)
+        setDirectory(path)
+    }, [])
+
     const handleDirectoryKeyDown = useCallback((event: ReactKeyboardEvent<HTMLInputElement>) => {
         if (suggestions.length === 0) return
 
@@ -290,6 +302,14 @@ export function NewSession(props: {
                     Runner last spawn error: {runnerSpawnError}
                 </div>
             ) : null}
+            <DirectoryBrowserDialog
+                api={props.api}
+                open={isDirectoryBrowserOpen}
+                machineId={machineId}
+                initialPath={trimmedDirectory || recentPaths[0]}
+                onOpenChange={setIsDirectoryBrowserOpen}
+                onSelect={handleDirectoryBrowseSelect}
+            />
             <DirectorySection
                 directory={directory}
                 suggestions={suggestions}
@@ -304,6 +324,8 @@ export function NewSession(props: {
                 onDirectoryKeyDown={handleDirectoryKeyDown}
                 onSuggestionSelect={handleSuggestionSelect}
                 onPathClick={handlePathClick}
+                canBrowse={Boolean(machineId)}
+                onBrowseClick={handleBrowseDirectory}
             />
             <SessionTypeSelector
                 sessionType={sessionType}

@@ -15,6 +15,7 @@ import { RpcHandlerManager } from './rpc/RpcHandlerManager'
 import { registerCommonHandlers } from '../modules/common/registerCommonHandlers'
 import type { SpawnSessionOptions, SpawnSessionResult } from '../modules/common/rpcTypes'
 import { applyVersionedAck } from './versionedUpdate'
+import { listMachineDirectory, type MachineDirectoryResponse } from './machineDirectory'
 
 interface ServerToRunnerEvents {
     update: (data: Update) => void
@@ -64,6 +65,10 @@ interface PathExistsResponse {
     exists: Record<string, boolean>
 }
 
+interface ListMachineDirectoryRequest {
+    path?: string
+}
+
 export class ApiMachineClient {
     private socket!: Socket<ServerToRunnerEvents, RunnerToServerEvents>
     private keepAliveInterval: NodeJS.Timeout | null = null
@@ -97,6 +102,10 @@ export class ApiMachineClient {
             }))
 
             return { exists }
+        })
+
+        this.rpcHandlerManager.registerHandler<ListMachineDirectoryRequest, MachineDirectoryResponse>('list-machine-directory', async (params) => {
+            return await listMachineDirectory(params?.path, getInvokedCwd())
         })
     }
 

@@ -20,6 +20,7 @@ import {
     type RpcCommandResponse,
     type RpcDeleteUploadResponse,
     type RpcListDirectoryResponse,
+    type RpcListMachineDirectoryResponse,
     type RpcPathExistsResponse,
     type RpcReadFileResponse,
     type RpcUploadFileResponse
@@ -33,6 +34,7 @@ export type {
     RpcCommandResponse,
     RpcDeleteUploadResponse,
     RpcListDirectoryResponse,
+    RpcListMachineDirectoryResponse,
     RpcPathExistsResponse,
     RpcReadFileResponse,
     RpcUploadFileResponse
@@ -419,6 +421,10 @@ export class SyncEngine {
             await new Promise((resolve) => setTimeout(resolve, 250))
         }
         return false
+    }
+
+    async listMachineDirectory(machineId: string, path?: string): Promise<RpcListMachineDirectoryResponse> {
+        return await this.rpcGateway.listMachineDirectory(machineId, path)
     }
 
     async checkPathsExist(machineId: string, paths: string[]): Promise<Record<string, boolean>> {

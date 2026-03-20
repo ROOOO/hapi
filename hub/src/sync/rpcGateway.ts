@@ -40,6 +40,18 @@ export type RpcListDirectoryResponse = {
     error?: string
 }
 
+export type RpcMachineDirectoryEntry = RpcDirectoryEntry & {
+    path: string
+}
+
+export type RpcListMachineDirectoryResponse = {
+    success: boolean
+    path?: string
+    parentPath?: string | null
+    entries?: RpcMachineDirectoryEntry[]
+    error?: string
+}
+
 export type RpcPathExistsResponse = {
     exists: Record<string, boolean>
 }
@@ -151,6 +163,30 @@ export class RpcGateway {
             return { type: 'error', message: `Unexpected spawn result: ${details}` }
         } catch (error) {
             return { type: 'error', message: error instanceof Error ? error.message : String(error) }
+        }
+    }
+
+    async listMachineDirectory(machineId: string, path?: string): Promise<RpcListMachineDirectoryResponse> {
+        try {
+            return await this.machineRpc(machineId, 'list-machine-directory', { path }) as RpcListMachineDirectoryResponse
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            if (message.includes('RPC handler not registered')) {
+                return {
+                    success: false,
+                    error: 'Machine client does not support directory browsing yet. Restart or upgrade the client on that machine.'
+                }
+            }
+            if (message.includes('RPC socket disconnected')) {
+                return {
+                    success: false,
+                    error: 'Machine client disconnected while loading the directory.'
+                }
+            }
+            return {
+                success: false,
+                error: message
+            }
         }
     }
 
