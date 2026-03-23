@@ -15,7 +15,7 @@ function createDeps(initialSettings: {
             settings = updater(settings as any) as typeof settings
             return settings as any
         }),
-        taskExists: vi.fn(() => false),
+        getTaskStatus: vi.fn(() => 'missing' as const),
         installTask: vi.fn(async () => {}),
         promptUser: vi.fn(async () => true),
         log: vi.fn(),
@@ -81,13 +81,26 @@ describe('maybeOfferWindowsRunnerAutostart', () => {
 
     it('adopts an existing task and marks autostart as enabled', async () => {
         const { deps, getSettings } = createDeps({}, {
-            taskExists: vi.fn(() => true)
+            getTaskStatus: vi.fn(() => 'valid' as const)
         })
 
         await maybeOfferWindowsRunnerAutostart({ startedBy: 'terminal' }, deps)
 
         expect(deps.promptUser).not.toHaveBeenCalled()
         expect(deps.installTask).not.toHaveBeenCalled()
+        expect(deps.updateSettings).toHaveBeenCalledOnce()
+        expect(getSettings().runnerAutoStartWhenRunningHappy).toBe(true)
+    })
+
+    it('reinstalls a stale existing task and marks autostart as enabled', async () => {
+        const { deps, getSettings } = createDeps({}, {
+            getTaskStatus: vi.fn(() => 'stale' as const)
+        })
+
+        await maybeOfferWindowsRunnerAutostart({ startedBy: 'terminal' }, deps)
+
+        expect(deps.promptUser).not.toHaveBeenCalled()
+        expect(deps.installTask).toHaveBeenCalledOnce()
         expect(deps.updateSettings).toHaveBeenCalledOnce()
         expect(getSettings().runnerAutoStartWhenRunningHappy).toBe(true)
     })

@@ -15,6 +15,8 @@ export const WINDOWS_RUNNER_AUTOSTART_TASK_NAME = 'HAPI Runner Autostart'
 
 const WINDOWS_RUNNER_AUTOSTART_SCRIPT = 'runner-autostart.ps1'
 
+type WindowsRunnerAutostartTaskStatus = 'missing' | 'valid' | 'stale'
+
 function quotePowerShellString(value: string): string {
     return `'${value.replace(/'/g, `''`)}'`
 }
@@ -31,6 +33,10 @@ function getWindowsPowerShellPath(): string {
 
 function getWindowsRunnerAutostartScriptPath(): string {
     return join(configuration.happyHomeDir, WINDOWS_RUNNER_AUTOSTART_SCRIPT)
+}
+
+function getWindowsRunnerAutostartActionArguments(scriptPath: string): string {
+    return `-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "${scriptPath}"`
 }
 
 function buildWindowsRunnerAutostartScript(): string {
@@ -80,18 +86,37 @@ function formatPowerShellError(result: ReturnType<typeof spawnSync>, fallback: s
     return new Error(message)
 }
 
-export function hasWindowsRunnerAutostartTask(): boolean {
+function getWindowsRunnerAutostartTaskStatus(): WindowsRunnerAutostartTaskStatus {
     if (!isWindows()) {
-        return false
+        return 'missing'
     }
 
+    const scriptPath = getWindowsRunnerAutostartScriptPath()
+    const powerShellPath = getWindowsPowerShellPath()
+    const actionArguments = getWindowsRunnerAutostartActionArguments(scriptPath)
     const result = runWindowsPowerShell([
         `$task = Get-ScheduledTask -TaskName ${quotePowerShellString(WINDOWS_RUNNER_AUTOSTART_TASK_NAME)} -ErrorAction SilentlyContinue`,
         `if ($null -eq $task) { exit 1 }`,
-        `exit 0`
+        `$action = $task.Actions | Select-Object -First 1`,
+        `if ($null -eq $action) { exit 2 }`,
+        `$normalize = { param([string]$value) if ($null -eq $value) { return '' } return $value.Trim().ToLowerInvariant() }`,
+        `$expectedExecute = ${quotePowerShellString(powerShellPath)}`,
+        `$expectedArguments = ${quotePowerShellString(actionArguments)}`,
+        `if ((& $normalize $action.Execute) -eq (& $normalize $expectedExecute) -and (& $normalize $action.Arguments) -eq (& $normalize $expectedArguments)) { exit 0 }`,
+        `exit 2`
     ].join('\n'))
 
-    return result.status === 0
+    if (result.status === 0) {
+        return 'valid'
+    }
+    if (result.status === 1) {
+        return 'missing'
+    }
+    return 'stale'
+}
+
+export function hasWindowsRunnerAutostartTask(): boolean {
+    return getWindowsRunnerAutostartTaskStatus() === 'valid'
 }
 
 export async function installWindowsRunnerAutostartTask(): Promise<void> {
@@ -105,7 +130,7 @@ export async function installWindowsRunnerAutostartTask(): Promise<void> {
     await writeFile(scriptPath, buildWindowsRunnerAutostartScript(), 'utf8')
 
     const powerShellPath = getWindowsPowerShellPath()
-    const actionArguments = `-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "${scriptPath}"`
+    const actionArguments = getWindowsRunnerAutostartActionArguments(scriptPath)
     const workingDirectory = homedir()
     const registerScript = [
         `$taskName = ${quotePowerShellString(WINDOWS_RUNNER_AUTOSTART_TASK_NAME)}`,
@@ -153,7 +178,7 @@ type WindowsRunnerAutostartDeps = {
     isInteractive: () => boolean
     readSettings: typeof readSettings
     updateSettings: typeof updateSettings
-    taskExists: () => boolean
+    getTaskStatus: () => WindowsRunnerAutostartTaskStatus
     installTask: () => Promise<void>
     promptUser: () => Promise<boolean>
     log: (message: string) => void
@@ -166,7 +191,7 @@ const defaultDeps: WindowsRunnerAutostartDeps = {
     isInteractive: () => Boolean(process.stdin.isTTY && process.stdout.isTTY),
     readSettings,
     updateSettings,
-    taskExists: hasWindowsRunnerAutostartTask,
+    getTaskStatus: getWindowsRunnerAutostartTaskStatus,
     installTask: installWindowsRunnerAutostartTask,
     promptUser: promptToInstallWindowsRunnerAutostart,
     log: (message) => console.log(message),
@@ -183,15 +208,27 @@ export async function maybeOfferWindowsRunnerAutostart(
 
     try {
         const settings = await deps.readSettings()
-        const taskExists = deps.taskExists()
+        const taskStatus = deps.getTaskStatus()
 
-        if (taskExists) {
+        if (taskStatus === 'valid') {
             if (settings.runnerAutoStartWhenRunningHappy !== true) {
                 await deps.updateSettings((current) => ({
                     ...current,
                     runnerAutoStartWhenRunningHappy: true
                 }))
             }
+            return
+        }
+
+        if (taskStatus === 'stale') {
+            await deps.installTask()
+            if (settings.runnerAutoStartWhenRunningHappy !== true) {
+                await deps.updateSettings((current) => ({
+                    ...current,
+                    runnerAutoStartWhenRunningHappy: true
+                }))
+            }
+            deps.log(chalk.green('Reinstalled Windows autostart task for hapi runner.'))
             return
         }
 
