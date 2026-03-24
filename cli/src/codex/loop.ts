@@ -6,6 +6,7 @@ import { codexLocalLauncher } from './codexLocalLauncher';
 import { codexRemoteLauncher } from './codexRemoteLauncher';
 import { ApiClient, ApiSessionClient } from '@/lib';
 import type { CodexCliOverrides } from './utils/codexCliOverrides';
+import type { ReasoningEffort } from './appServerTypes';
 import type { CodexCollaborationMode, CodexPermissionMode } from '@hapi/protocol/types';
 
 export type PermissionMode = CodexPermissionMode;
@@ -13,8 +14,8 @@ export type PermissionMode = CodexPermissionMode;
 export interface EnhancedMode {
     permissionMode: PermissionMode;
     model?: string;
-    modelReasoningEffort?: string;
     collaborationMode: CodexCollaborationMode;
+    modelReasoningEffort?: ReasoningEffort;
 }
 
 interface LoopOptions {

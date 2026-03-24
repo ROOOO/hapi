@@ -12,6 +12,7 @@ import { isPermissionModeAllowedForFlavor } from '@hapi/protocol';
 import { CodexCollaborationModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 import { getInvokedCwd } from '@/utils/invokedCwd';
+import type { ReasoningEffort } from './appServerTypes';
 
 export { emitReadyIfIdle } from './utils/emitReadyIfIdle';
 
@@ -21,7 +22,7 @@ export async function runCodex(opts: {
     permissionMode?: PermissionMode;
     resumeSessionId?: string;
     model?: string;
-    modelReasoningEffort?: string;
+    modelReasoningEffort?: ReasoningEffort;
 }): Promise<void> {
     const workingDirectory = getInvokedCwd();
     const startedBy = opts.startedBy ?? 'terminal';
@@ -81,7 +82,8 @@ export async function runCodex(opts: {
         sessionInstance.setCollaborationMode(currentCollaborationMode);
         logger.debug(
             `[Codex] Synced session config for keepalive: ` +
-            `permissionMode=${currentPermissionMode}, model=${currentModel ?? 'auto'}, collaborationMode=${currentCollaborationMode}`
+            `permissionMode=${currentPermissionMode}, model=${currentModel ?? 'auto'}, ` +
+            `modelReasoningEffort=${currentModelReasoningEffort ?? 'default'}, collaborationMode=${currentCollaborationMode}`
         );
     };
 
@@ -102,7 +104,8 @@ export async function runCodex(opts: {
         const messagePermissionMode = currentPermissionMode;
         logger.debug(
             `[Codex] User message received with permission mode: ${currentPermissionMode}, ` +
-            `model: ${currentModel ?? 'auto'}, collaborationMode: ${currentCollaborationMode}`
+            `model: ${currentModel ?? 'auto'}, modelReasoningEffort: ${currentModelReasoningEffort ?? 'default'}, ` +
+            `collaborationMode: ${currentCollaborationMode}`
         );
 
         const enhancedMode: EnhancedMode = {

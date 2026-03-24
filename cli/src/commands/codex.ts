@@ -5,6 +5,21 @@ import { initializeToken } from '@/ui/tokenInit'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
 import type { CommandDefinition } from './types'
 import type { CodexPermissionMode } from '@hapi/protocol/types'
+import type { ReasoningEffort } from '@/codex/appServerTypes'
+
+function parseReasoningEffort(value: string): ReasoningEffort {
+    switch (value) {
+        case 'none':
+        case 'minimal':
+        case 'low':
+        case 'medium':
+        case 'high':
+        case 'xhigh':
+            return value
+        default:
+            throw new Error('Invalid --model-reasoning-effort value')
+    }
+}
 
 export const codexCommand: CommandDefinition = {
     name: 'codex',
@@ -19,7 +34,7 @@ export const codexCommand: CommandDefinition = {
                 permissionMode?: CodexPermissionMode
                 resumeSessionId?: string
                 model?: string
-                modelReasoningEffort?: string
+                modelReasoningEffort?: ReasoningEffort
             } = {}
             const unknownArgs: string[] = []
 
@@ -51,7 +66,7 @@ export const codexCommand: CommandDefinition = {
                     if (!effort) {
                         throw new Error('Missing --model-reasoning-effort value')
                     }
-                    options.modelReasoningEffort = effort
+                    options.modelReasoningEffort = parseReasoningEffort(effort)
                 } else {
                     unknownArgs.push(arg)
                 }
